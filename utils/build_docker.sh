@@ -1,2 +1,4 @@
+set -e
+
 docker build --tag irondome:latest .
-docker run --rm irondome 
+docker run --init --rm irondome
