@@ -7,4 +7,6 @@ python3 irondome.py --path /data
 sleep 1
 mv /data/he /data/he.txt
 sleep 1
+sh -c " echo >> ha '                                                                                                                                                                                                                                                                                                                                                                                                                          '"
+
 tail -n 50 -f /var/log/irondome/irondome.log

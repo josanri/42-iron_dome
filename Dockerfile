@@ -7,7 +7,7 @@ RUN pip install python-daemon
 RUN pip install psutil
 
 WORKDIR /iron_dome
-COPY ./irondome.py ./irondome.py
+COPY ./irondome.py .
 
 COPY ./utils/entrypoint.sh ./entrypoint.sh
 

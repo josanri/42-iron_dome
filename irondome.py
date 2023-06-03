@@ -19,13 +19,13 @@ ransom_ext = (".micro", ".zepto", ".cerber", ".locky", ".cerber3", ".cryp1", ".m
 logfile = '/var/log/irondome/irondome.log'
 
 def read_procfs():
+    try:
         with open("/proc/diskstats") as f:
-            lines = f.readlines()
-        result = 0
-        for line in lines:
-            fields = line.split()
-            result += int(fields[9])
-        return result
+            line = f.readline()
+            result = int(line.split(' ')[6])
+            return result
+    except Exception:
+        return 0
 
 class IronDome:
     class IronDomeMemoryAndDiskUsage(threading.Thread):
@@ -69,7 +69,6 @@ class IronDome:
                 if self.extensions != None and pathlib.Path(file).suffix not in self.extensions:
                     break
                 try:
-                    logging.info(f"{file}")
                     self.file_dict[file] = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(file)
                 except Exception as err:
                     logging.error(f"Could not calculate the entropy of {file} - {err}")
@@ -103,8 +102,9 @@ class IronDome:
                 return
             if event.is_directory:
                 return
-            self.file_dict[event.src_path] = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.src_path)
-            logging.info(f"{event} {event.src_path} creado")
+            new_entropy = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.src_path)
+            self.file_dict[event.src_path] = new_entropy
+            logging.info(f"{event.src_path} creado - entropia {new_entropy}")
         def on_moved(self, event):
             if (self.extensions != None 
                 and (pathlib.Path(event.src_path).suffix not in self.extensions
@@ -113,17 +113,19 @@ class IronDome:
             new_entropy = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.dest_path)
             if self.file_dict.get(event.src_path) != None:
                 if abs(new_entropy - self.file_dict[event.src_path]) > IronDome.IronDomeEventHandler.entropy_change_limit:
-                    logging.warning(f"{event.dest_path} is a suspicious extension for a file")
+                    logging.warning(f"{event.dest_path} extrange increase of entropy")
                 if (self.extensions != None 
                     and pathlib.Path(event.event.src_path).suffix in self.extensions):
                     self.file_dict.pop(event.src_path)
                 if (self.extensions != None
                     and pathlib.Path(event.dest_path).suffix in self.extensions):
-                    self.file_dict[event.dest_path] = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.dest_path)
+                    self.file_dict[event.dest_path] = new_entropy
+                    logging.info(f"{event.src_path} - entropy {new_entropy}")
             elif (self.extensions != None and pathlib.Path(event.dest_path).suffix in self.extensions):
-                    self.file_dict[event.dest_path] = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.dest_path)
+                    self.file_dict[event.dest_path] = new_entropy
+                    logging.info(f"{event.src_path} - entropy {new_entropy}")
 
-            logging.info(f"{event.src_path} -> {event.dest_path} renombrado")
+            logging.info(f"{event.src_path} -> {event.dest_path} modificado")
             IronDome.IronDomeEventHandler.warn_extension_mismatch(event.src_path)
 
         def on_modified(self, event):
@@ -131,13 +133,26 @@ class IronDome:
                 return
             if event.is_directory:
                 return
-            logging.info(f"{event} {event.src_path} modificado")
+            new_entropy = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.src_path)
+            if self.file_dict.get(event.src_path) == None:
+                self.file_dict[event.src_path] = new_entropy
+                logging.warning(f"{event.src_path} modified but not logged before")
+                return
+            if abs(new_entropy - self.file_dict[event.src_path]) > IronDome.IronDomeEventHandler.entropy_change_limit:
+                logging.warning(f"{event.src_path} extrange increase of entropy")
+            else:
+                logging.info(f"{event.src_path} not very increase of entropy {abs(new_entropy - self.file_dict[event.src_path])}")
+            if (self.extensions == None
+                or pathlib.Path(event.src_path).suffix in self.extensions):
+                new_entropy = IronDome.IronDomeEventHandler.calculate_entropy_of_a_file(event.src_path)
+                self.file_dict[event.src_path] = new_entropy
+            logging.info(f"{event.src_path} - entropy {new_entropy}")
             IronDome.IronDomeEventHandler.warn_extension_mismatch(event.src_path)
 
 
 def main_program(path, extensions):
     logging.basicConfig(level=logging.INFO, filename=logfile)
-    logging.info(f"Starting to log at {datetime.datetime.now()}")
+    logging.info(f"Starting to log at {datetime.datetime.now()}  with  {extensions} {type(extensions)}")
 
     observer = Observer()
     observer.schedule(IronDome.IronDomeEventHandler(path, extensions), path, recursive=True)
