@@ -92,7 +92,7 @@ class IronDome:
         def warn_extension_mismatch(filename):
             file_extension = pathlib.Path(filename).suffix
             if (file_extension in ransom_ext):
-                logging.warning(f"{filename} is a suspicious extension for a file")
+                logging.warning(f"{file_extension} is a suspicious extension for a file")
             # mime_extension = mimetypes.guess_type(filename)[0]
             # if (mime_extension != None and file_extension not in mimetypes.guess_all_extensions(mime_extension)):
             #     logging.warning(f"{filename} has not the format for the {mime_extension} extension")
